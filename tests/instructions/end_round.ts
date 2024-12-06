@@ -29,7 +29,7 @@ import {
 } from "../helpers";
 import { getAccount } from "@solana/spl-token";
 
-export function testEndRound() {
+describe("End Round", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -305,9 +305,4 @@ export function testEndRound() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testEndRound());
-}
+});

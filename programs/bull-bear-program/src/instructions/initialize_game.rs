@@ -18,7 +18,7 @@ pub fn initialize_game(ctx: Context<InitializeGameContext>, interval: u64, feed_
     initialized_game.round_interval = interval;
 
     initialized_game.feed_id = get_feed_id_from_hex(&feed_id)?;
-    initialized_game.vault = ctx.accounts.token_vault.key();
+    initialized_game.vault = ctx.accounts.vault.key();
     initialized_game.token = ctx.accounts.mint.key();
     initialized_game.bump = ctx.bumps.game;
 
@@ -61,7 +61,8 @@ pub struct InitializeGameContext<'info> {
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             protocol.key().as_ref(),
-            round_interval.to_le_bytes().as_ref()
+            round_interval.to_le_bytes().as_ref(),
+            mint.key().as_ref(),
             ],
         bump)]
     pub game: Account<'info, Game>,
@@ -74,7 +75,7 @@ pub struct InitializeGameContext<'info> {
         associated_token::mint = mint,
         associated_token::authority = game,
     )]
-    pub token_vault: Account<'info, TokenAccount>,
+    pub vault: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,

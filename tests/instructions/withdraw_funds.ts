@@ -22,7 +22,7 @@ import {
 } from "../helpers";
 import { getAccount } from "@solana/spl-token";
 
-export function testWithdrawFunds() {
+describe("Withdraw Funds", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -207,9 +207,4 @@ export function testWithdrawFunds() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testWithdrawFunds());
-}
+});

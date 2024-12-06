@@ -62,7 +62,8 @@ pub struct PlaceBetContext<'info> {
             GAME_SEED.as_bytes(),
             game.game_authority.key().as_ref(),
             game.protocol.as_ref(),
-            game.round_interval.to_le_bytes().as_ref()
+            game.round_interval.to_le_bytes().as_ref(),
+            game.token.as_ref(),
         ],
         bump = game.bump
     )]

@@ -13,7 +13,7 @@ import {
   initializeProtocol,
 } from "../helpers";
 
-export function testInitializeProtocol() {
+describe("Initialize Protocol", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -84,9 +84,4 @@ export function testInitializeProtocol() {
       expect(gameFee.toNumber()).to.equal(game_fee);
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testInitializeProtocol());
-}
+});

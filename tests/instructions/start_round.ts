@@ -16,7 +16,7 @@ import {
   startRound,
 } from "../helpers";
 
-export function testStartRound() {
+describe("Start Round", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -168,9 +168,4 @@ export function testStartRound() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testStartRound());
-}
+});

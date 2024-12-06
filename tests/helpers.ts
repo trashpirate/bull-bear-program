@@ -50,6 +50,7 @@ export async function initializeGame(
     program,
     game_authority,
     protocolPDA,
+    tokenAddress,
     roundInterval
   );
   const gameVaultPDA = splToken.getAssociatedTokenAddressSync(
@@ -299,6 +300,7 @@ export async function getGamePDA(
   program: any,
   authority: any,
   protocolPDA: any,
+  tokenAddress: any,
   roundInterval: number = 0
 ) {
   const buffer64 = Buffer.alloc(8);
@@ -309,6 +311,7 @@ export async function getGamePDA(
       authority.publicKey.toBuffer(),
       protocolPDA.toBuffer(),
       buffer64,
+      tokenAddress.toBuffer(),
     ],
     program.programId
   );

@@ -20,17 +20,18 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-validator = """solana-test-validator --reset \
-    --bpf-program FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH tests/clones/pythOracle.so \
-    --bpf-program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA tests/clones/tokenProgram.so \
-    --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE \
-    --clone 6B23K3tkb51vLZA14jcEQVCA1pfHptzEHFA93V5dYwbT \
-    --clone 42amVS4KgzR9rA28tkVYqVXjq9Qa8dcZQMbH5EYFX6XC \
-    --clone 3T3R5KTAXgMF5KVw6v38qUfSUernCHQwYFzfVo1jdjMX --url 'https://api.mainnet-beta.solana.com'"""
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/bull-bear-program.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/start_round.ts"
 init = "yarn ts-node scripts/initializeProtocol.ts"
 start_round = "yarn ts-node scripts/startRound.ts"
 test_price_feed = "yarn ts-node scripts/testPriceFeed.ts"
+# solana_test_validator = """solana-test-validator --reset \
+#     --bpf-program FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH tests/clones/pythOracle.so \
+#     --bpf-program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA tests/clones/tokenProgram.so \
+#     --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE \
+#     --clone 6B23K3tkb51vLZA14jcEQVCA1pfHptzEHFA93V5dYwbT \
+#     --clone 42amVS4KgzR9rA28tkVYqVXjq9Qa8dcZQMbH5EYFX6XC \
+#     --clone 3T3R5KTAXgMF5KVw6v38qUfSUernCHQwYFzfVo1jdjMX --url 'https://api.mainnet-beta.solana.com'"""
+
 
 [test]
 startup_wait = 10000

@@ -18,7 +18,7 @@ import {
   warpToSlot,
 } from "../helpers";
 
-export function testCloseBetting() {
+describe("Close Betting", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -145,9 +145,4 @@ export function testCloseBetting() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testCloseBetting());
-}
+});

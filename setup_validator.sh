@@ -7,7 +7,8 @@ solana-test-validator --reset \
     --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE \
     --clone 6B23K3tkb51vLZA14jcEQVCA1pfHptzEHFA93V5dYwbT \
     --clone 42amVS4KgzR9rA28tkVYqVXjq9Qa8dcZQMbH5EYFX6XC \
-    --clone 3T3R5KTAXgMF5KVw6v38qUfSUernCHQwYFzfVo1jdjMX --url "https://api.mainnet-beta.solana.com"
+    --clone 3T3R5KTAXgMF5KVw6v38qUfSUernCHQwYFzfVo1jdjMX --url "https://api.mainnet-beta.solana.com" &
+VALIDATOR_PID=$!
 
 # # Wait for the validator to start
 # sleep 10

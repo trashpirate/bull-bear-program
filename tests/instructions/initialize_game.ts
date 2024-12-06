@@ -16,7 +16,7 @@ import {
   updateFeed,
 } from "../helpers";
 
-export function testInitializeGame() {
+describe("Intialize Game", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -165,9 +165,4 @@ export function testInitializeGame() {
       expect(priceFeed.toString()).to.equal(expectedPriceFeed.toString());
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testInitializeGame());
-}
+});

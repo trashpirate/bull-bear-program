@@ -34,7 +34,8 @@ pub struct UpdateFeedContext<'info> {
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             protocol.key().as_ref(),
-            game.round_interval.to_le_bytes().as_ref()
+            game.round_interval.to_le_bytes().as_ref(),
+            game.token.as_ref(),
             ],
         bump = game.bump)]
     pub game: Account<'info, Game>

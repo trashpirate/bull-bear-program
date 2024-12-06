@@ -6,7 +6,7 @@ import { BullBearProgram } from "../../target/types/bull_bear_program";
 import { priceFeedAddrSol, SOL_feedId } from "../config";
 import { airdrop } from "../helpers";
 
-export function testTestPriceFeed() {
+describe("Test Price Feed", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -43,9 +43,4 @@ export function testTestPriceFeed() {
       console.log(tx?.meta?.logMessages);
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testTestPriceFeed());
-}
+});

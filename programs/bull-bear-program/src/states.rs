@@ -5,7 +5,7 @@ pub const GAME_SEED: &str = "GAME_SEED";
 pub const ROUND_SEED: &str = "ROUND_SEED";
 pub const BET_SEED: &str = "BET_SEED";
 
-pub const MAXIMUM_AGE: u64 = 60; // 1 minute
+pub const MAXIMUM_AGE: u64 = 600; // 10 minute
 
 
 /** PROTOCOL */

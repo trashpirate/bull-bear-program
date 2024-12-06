@@ -32,7 +32,7 @@ import {
 } from "../helpers";
 import { approve, getAccount } from "@solana/spl-token";
 
-export function testClaimPrize() {
+describe("Claim Prize", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -395,9 +395,4 @@ export function testClaimPrize() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testClaimPrize());
-}
+});

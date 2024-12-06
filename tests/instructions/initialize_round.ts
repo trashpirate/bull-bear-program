@@ -14,7 +14,7 @@ import {
   initializeRound,
 } from "../helpers";
 
-export function testInitializeRound() {
+describe("Initialize Round", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -147,9 +147,4 @@ export function testInitializeRound() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testInitializeRound());
-}
+});

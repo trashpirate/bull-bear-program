@@ -20,7 +20,7 @@ import {
 } from "../helpers";
 import { approve, getAccount } from "@solana/spl-token";
 
-export function testPlaceBet() {
+describe("Close Betting", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -236,9 +236,4 @@ export function testPlaceBet() {
       }
     });
   });
-}
-
-if (require.main === module) {
-  const mocha = require("mocha");
-  mocha.run(() => testPlaceBet());
-}
+});
