@@ -26,10 +26,10 @@ pub fn claim_prize(ctx: Context<ClaimPrizeContext>) -> Result<()> {
     let prize_pool = round.total_up + round.total_down;
     let mut prize = 0;
     
-    if round.result == PriceMovement::Up && round.total_up > 0 {
+    if round.result == PriceMovement::Bull && round.total_up > 0 {
         prize = bet.amount  / round.total_up * prize_pool
     }
-    else if round.result == PriceMovement::Down && round.total_down > 0 {
+    else if round.result == PriceMovement::Bear && round.total_down > 0 {
         prize = bet.amount  / round.total_down * prize_pool ;
     }
     

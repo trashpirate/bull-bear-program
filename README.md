@@ -1,5 +1,17 @@
 # BullBear Game: A Price Prediction Game on Solana
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg?style=for-the-badge)
+![Node](https://img.shields.io/badge/node-v20.17.0-blue.svg?style=for-the-badge)
+![NPM](https://img.shields.io/badge/npm-v10.8.3-blue?style=for-the-badge)
+![Rust](https://img.shields.io/badge/Rust-v1.82.0-blue?style=for-the-badge)
+![Anchor](https://img.shields.io/badge/Anchor-v0.30.1-blue?style=for-the-badge)
+![Solana](https://img.shields.io/badge/Solana-v1.18.18-blue?style=for-the-badge)
+[![License: MIT](https://img.shields.io/github/license/trashpirate/bull-bear-program.svg?style=for-the-badge)](https://github.com/trashpirate/bull-bear-program/blob/master/LICENSE)
+
+[![Website: nadinaoates.com](https://img.shields.io/badge/Portfolio-00e0a7?style=for-the-badge&logo=Website)](https://nadinaoates.com)
+[![LinkedIn: nadinaoates](https://img.shields.io/badge/LinkedIn-0a66c2?style=for-the-badge&logo=LinkedIn&logoColor=f5f5f5)](https://linkedin.com/in/nadinaoates)
+[![Twitter: 0xTrashPirate](https://img.shields.io/badge/@0xTrashPirate-black?style=for-the-badge&logo=X)](https://twitter.com/0xTrashPirate)
+
 ## Description
 
 ### Overview
@@ -19,8 +31,8 @@ BullBear Game is an exciting and strategic price prediction game built on the So
 2. **Betting Phase:**
    - The betting phase is **open** at the start of the round.
    - Players place bets predicting the price movement of the selected cryptocurrency at `end_time` (`start_time + round_interval`):
-     - **Bull**: Predicting the price will go **up**.
-     - **Bear**: Predicting the price will go **down**.
+     - **Bull**: Predicting the price will go **bull**.
+     - **Bear**: Predicting the price will go **bear**.
    - Bets can only be placed during the first half of the interval.
 
 3. **Betting Closes:**
@@ -29,8 +41,8 @@ BullBear Game is an exciting and strategic price prediction game built on the So
 4. **Outcome Determination:**
    - At `end_time`, the price of the cryptocurrency is observed as `end_price`.
    - The price movement is evaluated:
-     - If `end_price` > `start_price`: **Up**.
-     - If `end_price` < `start_price`: **Down**.
+     - If `end_price` > `start_price`: **Bull**.
+     - If `end_price` < `start_price`: **Bear**.
      - If `end_price` == `start_price`: **No change**.
 
 5. **Winners and Protocol Rules:**
@@ -76,17 +88,17 @@ The program is structured as follows:
 - **End Time**: Timestamp when the round ends.  
 - **Start Price**: Price of the token at the start of the round.  
 - **End Price**: Price of the token at the end of the round.  
-- **Total Bets Up**: Total amount bet on the price going up.  
-- **Total Bets Down**: Total amount bet on the price going down.  
+- **Total Bets Bull**: Total amount bet on the price going up.  
+- **Total Bets Bear**: Total amount bet on the price going down.  
 - **Betting Status**: Current status of betting (`Open`, `Closed`).  
-- **Round Result**: Outcome of the round (`Up`, `Down`, `No Change`).  
+- **Round Result**: Outcome of the round (`Bull`, `Bear`, `No Change`).  
 - **Round Status**: Current round state (`Active`, `Ended`).  
 - **Number of Bets**: Total number of bets placed.
 
 #### Bets
 - **Player**: Public key of the player.  
 - **Round**: Public key of the associated round.  
-- **Prediction**: Player's prediction (`Up`, `Down`).  
+- **Prediction**: Player's prediction (`Bull`, `Bear`).  
 - **Amount**: Bet amount.  
 - **Claimed**: Whether the prize has been claimed.
 
@@ -185,7 +197,7 @@ anchor keys sync
 
 To deploy the program to devnet, run:
 ```
-anchor deploy --provider.cluster Devnet
+anchor deploy --program-name bull_bear_program --provider.cluster Devnet
 ```
 
 #### Deployment on Devnet
@@ -206,3 +218,35 @@ To test the price feed from the Pyth Oracle, run:
 ```
 anchor run test_price_feed --provider.cluster Devnet 
 ```
+
+
+<!-- CONTRIBUTING -->
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+<!-- LICENSE -->
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+<!-- CONTACT -->
+
+## Contact
+
+Nadina Oates - [@0xTrashPirate](https://twitter.com/0xTrashPirate)
+
+Main Repository: [https://github.com/trashpirate/flameling-queens](https://github.com/trashpirate/flameling-queens)
+
+Project Link: [https://0x52.buyholdearn.com/](https://0x52.buyholdearn.com/)

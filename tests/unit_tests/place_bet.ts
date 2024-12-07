@@ -134,7 +134,7 @@ describe("Place Bet", () => {
     ).amount;
 
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,
@@ -149,7 +149,7 @@ describe("Place Bet", () => {
     );
 
     const betPrediction = (await program.account.bet.fetch(betPDA)).prediction;
-    expect(Object.keys(betPrediction)[0].toString()).to.equal("down");
+    expect(Object.keys(betPrediction)[0].toString()).to.equal("bear");
 
     const totalBetsDown = (await program.account.round.fetch(roundPDA))
       .totalDown;
@@ -167,7 +167,7 @@ describe("Place Bet", () => {
 
   it("should not allow a player to update their bet", async () => {
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,
@@ -182,7 +182,7 @@ describe("Place Bet", () => {
     );
 
     // update bet
-    const newPrediction = { down: {} };
+    const newPrediction = { bear: {} };
     const newAmount = 500 * 10 ** 9;
     try {
       await placeBet(
@@ -216,7 +216,7 @@ describe("Place Bet", () => {
     await closeBetting(program, game_authority, gamePDA, roundPDA);
 
     // try place bet
-    let prediction = { down: {} };
+    let prediction = { bear: {} };
     let amount = 100 * 10 ** 9;
     try {
       await placeBet(

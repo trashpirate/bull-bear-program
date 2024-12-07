@@ -74,8 +74,8 @@ pub enum BettingStatus {
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, PartialEq, InitSpace)]
 pub enum PriceMovement {
     None,
-    Up,
-    Down,
+    Bull,
+    Bear,
     NoChange,
 }
 

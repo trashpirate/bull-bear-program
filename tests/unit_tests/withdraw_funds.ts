@@ -20,11 +20,12 @@ import {
   setOraclePrice,
   startRound,
   warpToSlot,
+  withdrawFunds,
 } from "../helpers";
 import { getAccount } from "@solana/spl-token";
 import { pullOracleClient } from "../mock_oracle";
 
-describe("End Round", () => {
+describe("Withdraw Funds", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -111,57 +112,11 @@ describe("End Round", () => {
 
     // start round
     await startRound(program, game_authority, gamePDA, roundPDA, priceFeedAddr);
-  });
-
-  it("should allow authority to end a round and calculate results", async () => {
-    // warp by 10 slots -> increase timestamp by 4 seconds
-    await warpToSlot(provider, slot_offset);
-
-    // close betting
-    await closeBetting(program, game_authority, gamePDA, roundPDA);
-
-    // updated Feed
-    await setOraclePrice(provider, pullOracle, priceFeedAddr, 30);
-
-    // end round
-    const tx = await endRound(
-      program,
-      game_authority,
-      gamePDA,
-      roundPDA,
-      gameVaultPDA,
-      roundVaultPDA,
-      tokenAddress,
-      priceFeedAddr
-    );
-
-    // check end price
-    const endPrice = (await program.account.round.fetch(roundPDA)).endPrice;
-    expect(endPrice.toNumber()).to.be.greaterThan(0);
-
-    // check round status
-    const roundStatus = (await program.account.round.fetch(roundPDA)).status;
-    expect(Object.keys(roundStatus)[0].toString()).to.equal("ended");
-
-    // check result
-    const roundResult = (await program.account.round.fetch(roundPDA)).result;
-    expect(Object.keys(roundResult)[0].toString()).to.equal("down");
-
-    // check game counter
-    const roundNr = (await program.account.round.fetch(roundPDA)).roundNr;
-    const gameCounter = (await program.account.game.fetch(gamePDA)).counter;
-    expect(gameCounter).to.equal(roundNr + 1);
-  });
-
-  it("should sends funds to game vault if no change", async () => {
-    const gameInitialBalance = (
-      await getAccount(provider.connection, gameVaultPDA)
-    ).amount;
 
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
-    const betPDA = await placeBet(
+    await placeBet(
       program,
       gamePDA,
       roundPDA,
@@ -172,15 +127,17 @@ describe("End Round", () => {
       prediction,
       amount
     );
+  });
 
-    // warp by 10 slots -> increase timestamp by 4 seconds
+  it("should allow authority to withdraw funds", async () => {
+    // warp by 3 slots -> increase timestamp by 1.2 seconds
     await warpToSlot(provider, slot_offset);
 
     // close betting
     await closeBetting(program, game_authority, gamePDA, roundPDA);
 
     // end round
-    const tx = await endRound(
+    await endRound(
       program,
       game_authority,
       gamePDA,
@@ -190,83 +147,43 @@ describe("End Round", () => {
       tokenAddress,
       priceFeedAddr
     );
-
-    // check round status
-    const roundStatus = (await program.account.round.fetch(roundPDA)).status;
-    expect(Object.keys(roundStatus)[0].toString()).to.equal("ended");
 
     // check result
     const roundResult = (await program.account.round.fetch(roundPDA)).result;
     expect(Object.keys(roundResult)[0].toString()).to.equal("noChange");
 
-    // check game counter
-    const roundNr = (await program.account.round.fetch(roundPDA)).roundNr;
-    const gameCounter = (await program.account.game.fetch(gamePDA)).counter;
-    expect(gameCounter).to.equal(roundNr + 1);
-
-    const gameEndingBalance = (
-      await getAccount(provider.connection, gameVaultPDA)
+    // get authority balance
+    const authorityInitialBalance = (
+      await getAccount(provider.connection, gameAuthorityTokenAccount.address)
     ).amount;
+    const amount = (await getAccount(provider.connection, gameVaultPDA)).amount;
 
-    const receivedBalance = gameEndingBalance - gameInitialBalance;
-    expect(Number(receivedBalance)).to.equal(amount);
+    // withdraw funds
+    const tx = await withdrawFunds(
+      program,
+      game_authority,
+      gamePDA,
+      gameVaultPDA,
+      tokenAddress,
+      gameAuthorityTokenAccount
+    );
+
+    const authorityNewBalance = (
+      await getAccount(provider.connection, gameAuthorityTokenAccount.address)
+    ).amount;
+    const funds = authorityNewBalance - authorityInitialBalance;
+    expect(funds).to.equal(amount);
   });
 
-  it("should not allow non-authority to end a round", async () => {
-    // warp by 10 slots -> increase timestamp by 4 seconds
-    await warpToSlot(provider, slot_offset);
-
-    // close betting
-    await closeBetting(program, game_authority, gamePDA, roundPDA);
-
-    // try to end round
-    try {
-      await endRound(
-        program,
-        player,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddr
-      );
-      expect.fail("Player should not be able to end round");
-    } catch (_err) {
-      const err = anchor.AnchorError.parse(_err.logs);
-      expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
-    }
-  });
-
-  it("should prevent ending a round before betting is closed", async () => {
-    // try to end round
-    try {
-      await endRound(
-        program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddr
-      );
-      expect.fail("Round should not be ended before betting is closed");
-    } catch (_err) {
-      const err = anchor.AnchorError.parse(_err.logs);
-      expect(err.error.errorCode.code).to.equal("BettingNeedsToBeClosed");
-    }
-  });
-
-  it("should prevent ending a second time", async () => {
-    // warp by 10 slots -> increase timestamp by 4 seconds
+  it("should not allow non-authority to withdraw", async () => {
+    // warp by 3 slots -> increase timestamp by 1.2 seconds
     await warpToSlot(provider, slot_offset);
 
     // close betting
     await closeBetting(program, game_authority, gamePDA, roundPDA);
 
     // end round
-    const tx = await endRound(
+    await endRound(
       program,
       game_authority,
       gamePDA,
@@ -277,19 +194,17 @@ describe("End Round", () => {
       priceFeedAddr
     );
 
-    // end again
+    // try to end round
     try {
-      await endRound(
+      await withdrawFunds(
         program,
-        game_authority,
+        player,
         gamePDA,
-        roundPDA,
         gameVaultPDA,
-        roundVaultPDA,
         tokenAddress,
-        priceFeedAddr
+        playerTokenAccount
       );
-      expect.fail("Ended round should not be ended");
+      expect.fail("Player should not be able to withdraw");
     } catch (_err) {
       const err = anchor.AnchorError.parse(_err.logs);
       expect(err.error.errorCode.code).to.equal("ConstraintSeeds");

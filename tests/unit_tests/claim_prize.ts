@@ -131,7 +131,7 @@ describe("Claim Prize", () => {
 
   it("should allow a winning player to claim their prize", async () => {
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,
@@ -197,7 +197,7 @@ describe("Claim Prize", () => {
 
   it("should not allow losers to claim a prize", async () => {
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,
@@ -253,7 +253,7 @@ describe("Claim Prize", () => {
 
   it("should not allow a player to claim their prize more than once", async () => {
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,
@@ -321,7 +321,7 @@ describe("Claim Prize", () => {
 
   it("should not allow prize claims for unfinished rounds", async () => {
     // place bet
-    const prediction = { down: {} };
+    const prediction = { bear: {} };
     const amount = 100 * 10 ** 9;
     const betPDA = await placeBet(
       program,

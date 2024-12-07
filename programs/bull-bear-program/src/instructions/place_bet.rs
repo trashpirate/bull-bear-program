@@ -18,10 +18,10 @@ pub fn place_bet(ctx: Context<PlaceBetContext>, prediction: PriceMovement, amoun
     require!(round.betting == BettingStatus::Open, BullBearProgramError::BettingIsClosed);
 
     match prediction {
-        PriceMovement::Up => {
+        PriceMovement::Bull => {
             round.total_up = round.total_up.checked_add(amount).ok_or(BullBearProgramError::MaximumBetAmountReached)?;
         }
-        PriceMovement::Down => {
+        PriceMovement::Bear => {
             round.total_down = round.total_down.checked_add(amount).ok_or(BullBearProgramError::MaximumBetAmountReached)?;
         }
         PriceMovement::None => {

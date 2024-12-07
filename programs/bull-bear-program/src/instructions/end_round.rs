@@ -40,10 +40,10 @@ pub fn end_round(ctx: Context<EndRoundContext>) -> Result<()> {
     round.end_price = sol_price;
     round.end_time = end_time;
     if round.start_price < sol_price {
-        round.result = PriceMovement::Up;
+        round.result = PriceMovement::Bull;
     }
     else if round.start_price > sol_price {
-        round.result = PriceMovement::Down;
+        round.result = PriceMovement::Bear;
     }
     else {
         round.result = PriceMovement::NoChange;
