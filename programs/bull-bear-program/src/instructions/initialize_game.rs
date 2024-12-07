@@ -1,12 +1,12 @@
 use anchor_lang::{prelude::*, solana_program};
-use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token::{Mint, TokenAccount, Token};
-use anchor_spl::associated_token::AssociatedToken;
+use anchor_lang::solana_program::{system_instruction, system_program};
+use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
+use anchor_spl::associated_token::{spl_associated_token_account, AssociatedToken};
 use pyth_solana_receiver_sdk::price_update::get_feed_id_from_hex;
 
 use crate::states::*;
 
-pub fn initialize_game(ctx: Context<InitializeGameContext>, interval: u64, feed_id: String) -> Result<()> {
+pub fn initialize_game(ctx: Context<InitializeGameContext>, interval: u64, feed_id: String, feed_account: Pubkey) -> Result<()> {
     
     let game_authority = &ctx.accounts.game_authority;
     let protocol = &ctx.accounts.protocol;
@@ -18,6 +18,7 @@ pub fn initialize_game(ctx: Context<InitializeGameContext>, interval: u64, feed_
     initialized_game.round_interval = interval;
 
     initialized_game.feed_id = get_feed_id_from_hex(&feed_id)?;
+    initialized_game.feed_account = feed_account;
     initialized_game.vault = ctx.accounts.vault.key();
     initialized_game.token = ctx.accounts.mint.key();
     initialized_game.bump = ctx.bumps.game;
@@ -39,10 +40,11 @@ pub fn initialize_game(ctx: Context<InitializeGameContext>, interval: u64, feed_
 
 
 #[derive(Accounts)]
-#[instruction(round_interval: i64)]
+#[instruction(round_interval: i64, feed_id: String, feed_account: Pubkey)]
 pub struct InitializeGameContext<'info> {
     #[account(mut)]
     pub game_authority: Signer<'info>,
+    
      #[account(
         mut,
         seeds = [
@@ -52,6 +54,7 @@ pub struct InitializeGameContext<'info> {
         bump = protocol.bump,
     )]
     pub protocol: Account<'info, Protocol>,
+
     #[account(
         init,
         payer = game_authority,
@@ -61,14 +64,15 @@ pub struct InitializeGameContext<'info> {
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             protocol.key().as_ref(),
-            round_interval.to_le_bytes().as_ref(),
             mint.key().as_ref(),
+            feed_account.as_ref(),
             ],
         bump)]
     pub game: Account<'info, Game>,
-    // this constraint should also include a check with token address provided as parameter?
+    
     #[account(constraint = mint.mint_authority.is_some())]
     pub mint: Account<'info, Mint>,
+
     #[account(
         init,
         payer = game_authority,
@@ -76,7 +80,14 @@ pub struct InitializeGameContext<'info> {
         associated_token::authority = game,
     )]
     pub vault: Account<'info, TokenAccount>,
-    pub system_program: Program<'info, System>,
+    
+     #[account(address = spl_token::ID)]
     pub token_program: Program<'info, Token>,
+
+    #[account(address = spl_associated_token_account::ID)]
     pub associated_token_program: Program<'info, AssociatedToken>,
+
+     #[account(address = system_program::ID)]
+    pub system_program: Program<'info, System>,
+
 }

@@ -1,5 +1,6 @@
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::system_program;
 
 use crate::errors::BullBearProgramError;
 use crate::states::*;
@@ -31,17 +32,19 @@ pub fn close_betting(ctx: Context<CloseBettingContext>) -> Result<()> {
 pub struct CloseBettingContext<'info> {
     #[account(mut)]
     pub game_authority: Signer<'info>,
+    
     #[account(
         seeds = [
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             game.protocol.as_ref(),
-            game.round_interval.to_le_bytes().as_ref(),
             game.token.as_ref(),
+            game.feed_account.as_ref()
         ],
         bump = game.bump
     )]
     pub game: Account<'info, Game>,
+
     #[account(
         mut,
         seeds = [
@@ -52,5 +55,7 @@ pub struct CloseBettingContext<'info> {
         bump = round.bump
     )]
     pub round: Account<'info, Round>,
+
+    #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }

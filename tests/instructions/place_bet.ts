@@ -5,22 +5,25 @@ import { BullBearProgram } from "../../target/types/bull_bear_program";
 import { assert, expect } from "chai";
 import * as splToken from "@solana/spl-token";
 
-import { priceFeedAddrSol, INTERVAL, SLOT_OFFSET, FEE } from "../config";
+import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
   closeBetting,
+  getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
   initializeRound,
   placeBet,
+  setOraclePrice,
   startRound,
   warpToSlot,
 } from "../helpers";
 import { approve, getAccount } from "@solana/spl-token";
+import { pullOracleClient } from "../mock_oracle";
 
-describe("Close Betting", () => {
+describe("Place Bet", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -42,6 +45,8 @@ describe("Close Betting", () => {
   let gameVaultPDA: PublicKey;
   let roundPDA: PublicKey;
   let roundVaultPDA: PublicKey;
+  let priceFeedAddr: PublicKey;
+  let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
     // Generate keypairs
     authority = anchor.web3.Keypair.generate();
@@ -71,6 +76,12 @@ describe("Close Betting", () => {
       game_authority
     );
 
+    // setup oracle
+    const oracle = await getOracle(provider);
+    priceFeedAddr = oracle.feed;
+    pullOracle = oracle.pullOracle;
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 60);
+
     // initialize parameters
     game_fee = FEE;
     roundInterval = INTERVAL;
@@ -85,7 +96,8 @@ describe("Close Betting", () => {
       game_authority,
       protocolPDA,
       roundInterval,
-      tokenAddress
+      tokenAddress,
+      priceFeedAddr
     );
 
     // initialize round
@@ -97,13 +109,7 @@ describe("Close Betting", () => {
     );
 
     // start round
-    await startRound(
-      program,
-      game_authority,
-      gamePDA,
-      roundPDA,
-      priceFeedAddrSol
-    );
+    await startRound(program, game_authority, gamePDA, roundPDA, priceFeedAddr);
 
     // fund player account
     const playerBalance = (
@@ -121,17 +127,99 @@ describe("Close Betting", () => {
     );
   });
 
-  describe("Betting", () => {
-    it("should allow a player to place a valid bet on an active round", async () => {
-      // get player balance
-      const playerInitialBalance = (
-        await getAccount(provider.connection, playerTokenAccount.address)
-      ).amount;
+  it("should allow a player to place a valid bet on an active round", async () => {
+    // get player balance
+    const playerInitialBalance = (
+      await getAccount(provider.connection, playerTokenAccount.address)
+    ).amount;
 
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
+
+    const betPrediction = (await program.account.bet.fetch(betPDA)).prediction;
+    expect(Object.keys(betPrediction)[0].toString()).to.equal("down");
+
+    const totalBetsDown = (await program.account.round.fetch(roundPDA))
+      .totalDown;
+    expect(totalBetsDown.toString()).to.equal(new anchor.BN(amount).toString());
+
+    const playerNewBalance = (
+      await getAccount(provider.connection, playerTokenAccount.address)
+    ).amount;
+    const vaultBalance = (await getAccount(provider.connection, roundVaultPDA))
+      .amount;
+
+    expect(vaultBalance).to.equal(BigInt(amount));
+    expect(playerNewBalance).to.equal(playerInitialBalance - BigInt(amount));
+  });
+
+  it("should not allow a player to update their bet", async () => {
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
+
+    // update bet
+    const newPrediction = { down: {} };
+    const newAmount = 500 * 10 ** 9;
+    try {
+      await placeBet(
+        program,
+        gamePDA,
+        roundPDA,
+        roundVaultPDA,
+        tokenAddress,
+        player,
+        playerTokenAccount,
+        newPrediction,
+        newAmount
+      );
+
+      expect.fail("User should not be able to update bet");
+    } catch (err) {
+      if (err instanceof SendTransactionError) {
+        assert.include(err.message, "already in use");
+      } else {
+        console.error("Unexpected Error:", err);
+        assert.fail("Unexpected error during transaction.");
+      }
+    }
+  });
+
+  it("should not allow bets on a closed round", async () => {
+    // warp by 5 slots -> increase timestamp by 2 seconds
+    await warpToSlot(provider, 2);
+
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
+
+    // try place bet
+    let prediction = { down: {} };
+    let amount = 100 * 10 ** 9;
+    try {
+      await placeBet(
         program,
         gamePDA,
         roundPDA,
@@ -142,98 +230,10 @@ describe("Close Betting", () => {
         prediction,
         amount
       );
-
-      const betPrediction = (await program.account.bet.fetch(betPDA))
-        .prediction;
-      expect(Object.keys(betPrediction)[0].toString()).to.equal("down");
-
-      const totalBetsDown = (await program.account.round.fetch(roundPDA))
-        .totalDown;
-      expect(totalBetsDown.toString()).to.equal(
-        new anchor.BN(amount).toString()
-      );
-
-      const playerNewBalance = (
-        await getAccount(provider.connection, playerTokenAccount.address)
-      ).amount;
-      const vaultBalance = (
-        await getAccount(provider.connection, roundVaultPDA)
-      ).amount;
-
-      expect(vaultBalance).to.equal(BigInt(amount));
-      expect(playerNewBalance).to.equal(playerInitialBalance - BigInt(amount));
-    });
-
-    it("should not allow a player to update their bet", async () => {
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
-        program,
-        gamePDA,
-        roundPDA,
-        roundVaultPDA,
-        tokenAddress,
-        player,
-        playerTokenAccount,
-        prediction,
-        amount
-      );
-
-      // update bet
-      const newPrediction = { down: {} };
-      const newAmount = 500 * 10 ** 9;
-      try {
-        await placeBet(
-          program,
-          gamePDA,
-          roundPDA,
-          roundVaultPDA,
-          tokenAddress,
-          player,
-          playerTokenAccount,
-          newPrediction,
-          newAmount
-        );
-
-        expect.fail("User should not be able to update bet");
-      } catch (err) {
-        if (err instanceof SendTransactionError) {
-          assert.include(err.message, "already in use");
-        } else {
-          console.error("Unexpected Error:", err);
-          assert.fail("Unexpected error during transaction.");
-        }
-      }
-    });
-
-    it("should not allow bets on a closed round", async () => {
-      // warp by 5 slots -> increase timestamp by 2 seconds
-      await warpToSlot(provider, 2);
-
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
-
-      // try place bet
-      let prediction = { down: {} };
-      let amount = 100 * 10 ** 9;
-      try {
-        await placeBet(
-          program,
-          gamePDA,
-          roundPDA,
-          roundVaultPDA,
-          tokenAddress,
-          player,
-          playerTokenAccount,
-          prediction,
-          amount
-        );
-        expect.fail("Player should not be able to place bet.");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("BettingIsClosed");
-      }
-    });
+      expect.fail("Player should not be able to place bet.");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("BettingIsClosed");
+    }
   });
 });

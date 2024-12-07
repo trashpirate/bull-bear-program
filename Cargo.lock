@@ -1324,6 +1324,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock_pyth_pull"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "pyth-solana-receiver-sdk",
+]
+
+[[package]]
+name = "mock_pyth_push"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "bytemuck",
+]
+
+[[package]]
 name = "num"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

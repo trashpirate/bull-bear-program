@@ -15,8 +15,8 @@ pub mod bull_bear_program {
         return initialize_protocol(ctx, game_fee);
     }
 
-    pub fn initialize_new_game(ctx: Context<InitializeGameContext>, round_interval: u64, feed_id: String) -> Result<()> {
-        return initialize_game(ctx, round_interval, feed_id);
+    pub fn initialize_new_game(ctx: Context<InitializeGameContext>, round_interval: u64, feed_id: String, feed_account: Pubkey) -> Result<()> {
+        return initialize_game(ctx, round_interval, feed_id, feed_account);
     }
     
     pub fn initialize_new_round(ctx: Context<InitializeRoundContext>) -> Result<()> {
@@ -47,8 +47,8 @@ pub mod bull_bear_program {
         return withdraw_funds(ctx);
     }
 
-    pub fn update_price_feed(ctx: Context<UpdateFeedContext>, feed_id: String) -> Result<()> {
-        return update_feed(ctx, feed_id);
+    pub fn update_round_interval(ctx: Context<UpdateIntervalContext>, round_interval: u64) -> Result<()> {
+        return update_interval(ctx, round_interval);
     }
     
     pub fn test_feed(ctx: Context<PriceFeedContext>, feed_id: String, maximum_age: u64) -> Result<()> {

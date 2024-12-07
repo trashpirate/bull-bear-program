@@ -7,12 +7,15 @@ import * as splToken from "@solana/spl-token";
 import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
+  getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
   initializeRound,
+  setOraclePrice,
 } from "../helpers";
+import { pullOracleClient } from "../mock_oracle";
 
 describe("Initialize Round", () => {
   // provider
@@ -34,6 +37,8 @@ describe("Initialize Round", () => {
   let gameAuthorityTokenAccount: splToken.Account;
   let gamePDA: PublicKey;
   let gameVaultPDA: PublicKey;
+  let priceFeedAddr: PublicKey;
+  let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
     // Generate keypairs
     authority = anchor.web3.Keypair.generate();
@@ -63,6 +68,11 @@ describe("Initialize Round", () => {
       game_authority
     );
 
+    // setup oracle
+    const oracle = await getOracle(provider);
+    priceFeedAddr = oracle.feed;
+    pullOracle = oracle.pullOracle;
+
     // initialize parameters
     game_fee = FEE;
     roundInterval = INTERVAL;
@@ -77,74 +87,72 @@ describe("Initialize Round", () => {
       game_authority,
       protocolPDA,
       roundInterval,
-      tokenAddress
+      tokenAddress,
+      priceFeedAddr
     );
   });
 
-  describe("Round Initialization", () => {
-    let roundPDA: PublicKey;
-    let roundVaultPDA: PublicKey;
-    it("should initialize a round with correct game association and default state", async () => {
-      [roundPDA, roundVaultPDA] = await initializeRound(
-        program,
-        game_authority,
-        gamePDA,
-        tokenAddress
-      );
+  let roundPDA: PublicKey;
+  let roundVaultPDA: PublicKey;
+  it("should initialize a round with correct game association and default state", async () => {
+    [roundPDA, roundVaultPDA] = await initializeRound(
+      program,
+      game_authority,
+      gamePDA,
+      tokenAddress
+    );
 
-      // check program counter
-      const programCounter = (await program.account.game.fetch(gamePDA))
-        .counter;
-      expect(programCounter).to.equal(0);
+    // check program counter
+    const programCounter = (await program.account.game.fetch(gamePDA)).counter;
+    expect(programCounter).to.equal(0);
 
-      // check linked game id
-      const gameId = (await program.account.round.fetch(roundPDA)).game;
-      expect(gameId.toString()).to.equal(gamePDA.toString());
+    // check linked game id
+    const gameId = (await program.account.round.fetch(roundPDA)).game;
+    expect(gameId.toString()).to.equal(gamePDA.toString());
 
-      // check round number
-      const roundNr = (await program.account.round.fetch(roundPDA)).roundNr;
-      expect(roundNr).to.equal(0);
+    // check round number
+    const roundNr = (await program.account.round.fetch(roundPDA)).roundNr;
+    expect(roundNr).to.equal(0);
 
-      // check betting status
-      const betting = (await program.account.round.fetch(roundPDA)).betting;
-      expect(Object.keys(betting)[0].toString()).to.equal("closed");
+    // check betting status
+    const betting = (await program.account.round.fetch(roundPDA)).betting;
+    expect(Object.keys(betting)[0].toString()).to.equal("closed");
 
-      // check round status
-      const status = (await program.account.round.fetch(roundPDA)).status;
-      expect(Object.keys(status)[0].toString()).to.equal("inactive");
-    });
+    // check round status
+    const status = (await program.account.round.fetch(roundPDA)).status;
+    expect(Object.keys(status)[0].toString()).to.equal("inactive");
+  });
 
-    it("should not allow non-authority to initialize a round", async () => {
-      try {
-        await initializeRound(program, player, gamePDA, tokenAddress);
-        expect.fail("Player should not be able to initialize round.");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
+  it("should not allow non-authority to initialize a round", async () => {
+    try {
+      await initializeRound(program, player, gamePDA, tokenAddress);
+      expect.fail("Player should not be able to initialize round.");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
+    }
+  });
+
+  it("should prevent initializing multiple rounds for the same game", async () => {
+    // initialize round
+    [roundPDA, roundVaultPDA] = await initializeRound(
+      program,
+      game_authority,
+      gamePDA,
+      tokenAddress
+    );
+
+    // initialize round again
+    try {
+      await initializeRound(program, game_authority, gamePDA, tokenAddress);
+      expect.fail("Player should not be able to initialize round.");
+    } catch (err) {
+      if (err instanceof SendTransactionError) {
+        assert.include(err.message, "already in use");
+      } else {
+        console.error("Unexpected Error:", err);
+        assert.fail("Unexpected error during transaction.");
       }
-    });
-
-    it("should prevent initializing multiple rounds for the same game", async () => {
-      // initialize round
-      [roundPDA, roundVaultPDA] = await initializeRound(
-        program,
-        game_authority,
-        gamePDA,
-        tokenAddress
-      );
-
-      // initialize round again
-      try {
-        await initializeRound(program, game_authority, gamePDA, tokenAddress);
-        expect.fail("Player should not be able to initialize round.");
-      } catch (err) {
-        if (err instanceof SendTransactionError) {
-          assert.include(err.message, "already in use");
-        } else {
-          console.error("Unexpected Error:", err);
-          assert.fail("Unexpected error during transaction.");
-        }
-      }
-    });
+    }
   });
 });

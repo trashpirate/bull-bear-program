@@ -1,9 +1,10 @@
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::system_program;
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
-use anchor_spl::token::{Mint, TokenAccount, Token, Transfer, transfer};
-use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{spl_token, transfer, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::associated_token::{spl_associated_token_account, AssociatedToken};
 
 use crate::errors::BullBearProgramError;
 use crate::states::*;
@@ -78,18 +79,20 @@ pub fn end_round(ctx: Context<EndRoundContext>) -> Result<()> {
 pub struct EndRoundContext<'info> {
     #[account(mut)]
     pub game_authority: Signer<'info>,
+    
     #[account(
         mut,
         seeds = [
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             game.protocol.as_ref(),
-            game.round_interval.to_le_bytes().as_ref(),
             game.token.as_ref(),
+            game.feed_account.as_ref()
         ],
         bump = game.bump
     )]
     pub game: Account<'info, Game>,
+
     #[account(
         mut,
         seeds = [
@@ -100,10 +103,12 @@ pub struct EndRoundContext<'info> {
         bump = round.bump
     )]
     pub round: Account<'info, Round>,
+
      #[account(
         constraint = mint.key() == game.token @ BullBearProgramError::InvalidMintAccount
     )]
     pub mint: Account<'info, Mint>,
+
     #[account(
         mut,
         associated_token::mint = mint,
@@ -116,8 +121,16 @@ pub struct EndRoundContext<'info> {
         associated_token::authority = game,
     )]
     pub game_vault: Account<'info, TokenAccount>,
+
+    #[account(address = game.feed_account)]
     pub price_update: Account<'info, PriceUpdateV2>,
-    pub system_program: Program<'info, System>,
+
+    #[account(address = spl_token::ID)]
     pub token_program: Program<'info, Token>,
+
+    #[account(address = spl_associated_token_account::ID)]
     pub associated_token_program: Program<'info, AssociatedToken>,
+
+    #[account(address = system_program::ID)]
+    pub system_program: Program<'info, System>,
 }

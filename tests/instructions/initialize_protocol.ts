@@ -66,22 +66,19 @@ describe("Initialize Protocol", () => {
     slot_offset = SLOT_OFFSET;
   });
 
-  describe("Protocol Initialization", () => {
-    it("should initialize the protocol with correct authority", async () => {
-      // Initialize Protocol
-      protocolPDA = await initializeProtocol(program, authority, game_fee);
+  it("should initialize the protocol with correct authority", async () => {
+    // Initialize Protocol
+    protocolPDA = await initializeProtocol(program, authority, game_fee);
 
-      // check protocol authority
-      const protocolAuthority = (
-        await program.account.protocol.fetch(protocolPDA)
-      ).authority;
-      expect(protocolAuthority.toString()).to.equal(
-        authority.publicKey.toString()
-      );
-      // check game fee
-      const gameFee = (await program.account.protocol.fetch(protocolPDA))
-        .gameFee;
-      expect(gameFee.toNumber()).to.equal(game_fee);
-    });
+    // check protocol authority
+    const protocolAuthority = (
+      await program.account.protocol.fetch(protocolPDA)
+    ).authority;
+    expect(protocolAuthority.toString()).to.equal(
+      authority.publicKey.toString()
+    );
+    // check game fee
+    const gameFee = (await program.account.protocol.fetch(protocolPDA)).gameFee;
+    expect(gameFee.toNumber()).to.equal(game_fee);
   });
 });

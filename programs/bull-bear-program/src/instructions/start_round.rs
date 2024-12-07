@@ -1,5 +1,6 @@
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::system_program;
 use pyth_solana_receiver_sdk::price_update::{PriceUpdateV2, VerificationLevel};
 use core::cmp::max;
 
@@ -50,8 +51,8 @@ pub struct StartRoundContext<'info> {
             GAME_SEED.as_bytes(),
             game_authority.key().as_ref(),
             game.protocol.as_ref(),
-            game.round_interval.to_le_bytes().as_ref(),
             game.token.as_ref(),
+            game.feed_account.as_ref()
         ],
         bump = game.bump
     )]
@@ -66,6 +67,10 @@ pub struct StartRoundContext<'info> {
         bump = round.bump
     )]
     pub round: Account<'info, Round>,
+
+    #[account(address = game.feed_account)]
     pub price_update: Account<'info, PriceUpdateV2>,
+
+     #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }

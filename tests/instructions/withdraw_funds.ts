@@ -5,22 +5,25 @@ import { BullBearProgram } from "../../target/types/bull_bear_program";
 import { expect } from "chai";
 import * as splToken from "@solana/spl-token";
 
-import { priceFeedAddrSol, INTERVAL, SLOT_OFFSET, FEE } from "../config";
+import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
   closeBetting,
   endRound,
+  getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
   initializeRound,
   placeBet,
+  setOraclePrice,
   startRound,
   warpToSlot,
   withdrawFunds,
 } from "../helpers";
 import { getAccount } from "@solana/spl-token";
+import { pullOracleClient } from "../mock_oracle";
 
 describe("Withdraw Funds", () => {
   // provider
@@ -44,6 +47,8 @@ describe("Withdraw Funds", () => {
   let gameVaultPDA: PublicKey;
   let roundPDA: PublicKey;
   let roundVaultPDA: PublicKey;
+  let priceFeedAddr: PublicKey;
+  let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
     // Generate keypairs
     authority = anchor.web3.Keypair.generate();
@@ -73,6 +78,12 @@ describe("Withdraw Funds", () => {
       game_authority
     );
 
+    // setup oracle
+    const oracle = await getOracle(provider);
+    priceFeedAddr = oracle.feed;
+    pullOracle = oracle.pullOracle;
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 60);
+
     // initialize parameters
     game_fee = FEE;
     roundInterval = INTERVAL;
@@ -87,7 +98,8 @@ describe("Withdraw Funds", () => {
       game_authority,
       protocolPDA,
       roundInterval,
-      tokenAddress
+      tokenAddress,
+      priceFeedAddr
     );
 
     // initialize round
@@ -99,13 +111,7 @@ describe("Withdraw Funds", () => {
     );
 
     // start round
-    await startRound(
-      program,
-      game_authority,
-      gamePDA,
-      roundPDA,
-      priceFeedAddrSol
-    );
+    await startRound(program, game_authority, gamePDA, roundPDA, priceFeedAddr);
 
     // place bet
     const prediction = { down: {} };
@@ -123,88 +129,85 @@ describe("Withdraw Funds", () => {
     );
   });
 
-  describe("Withdraw Funds", () => {
-    it("should allow authority to withdraw funds", async () => {
-      // warp by 3 slots -> increase timestamp by 1.2 seconds
-      await warpToSlot(provider, slot_offset);
+  it("should allow authority to withdraw funds", async () => {
+    // warp by 3 slots -> increase timestamp by 1.2 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
 
-      // end round
-      await endRound(
+    // end round
+    await endRound(
+      program,
+      game_authority,
+      gamePDA,
+      roundPDA,
+      gameVaultPDA,
+      roundVaultPDA,
+      tokenAddress,
+      priceFeedAddr
+    );
+
+    // check result
+    const roundResult = (await program.account.round.fetch(roundPDA)).result;
+    expect(Object.keys(roundResult)[0].toString()).to.equal("noChange");
+
+    // get authority balance
+    const authorityInitialBalance = (
+      await getAccount(provider.connection, gameAuthorityTokenAccount.address)
+    ).amount;
+    const amount = (await getAccount(provider.connection, gameVaultPDA)).amount;
+
+    // withdraw funds
+    const tx = await withdrawFunds(
+      program,
+      game_authority,
+      gamePDA,
+      gameVaultPDA,
+      tokenAddress,
+      gameAuthorityTokenAccount
+    );
+
+    const authorityNewBalance = (
+      await getAccount(provider.connection, gameAuthorityTokenAccount.address)
+    ).amount;
+    const funds = authorityNewBalance - authorityInitialBalance;
+    expect(funds).to.equal(amount);
+  });
+
+  it("should not allow non-authority to withdraw", async () => {
+    // warp by 3 slots -> increase timestamp by 1.2 seconds
+    await warpToSlot(provider, slot_offset);
+
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
+
+    // end round
+    await endRound(
+      program,
+      game_authority,
+      gamePDA,
+      roundPDA,
+      gameVaultPDA,
+      roundVaultPDA,
+      tokenAddress,
+      priceFeedAddr
+    );
+
+    // try to end round
+    try {
+      await withdrawFunds(
         program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddrSol
-      );
-
-      // check result
-      const roundResult = (await program.account.round.fetch(roundPDA)).result;
-      expect(Object.keys(roundResult)[0].toString()).to.equal("noChange");
-
-      // get authority balance
-      const authorityInitialBalance = (
-        await getAccount(provider.connection, gameAuthorityTokenAccount.address)
-      ).amount;
-      const amount = (await getAccount(provider.connection, gameVaultPDA))
-        .amount;
-
-      // withdraw funds
-      const tx = await withdrawFunds(
-        program,
-        game_authority,
+        player,
         gamePDA,
         gameVaultPDA,
         tokenAddress,
-        gameAuthorityTokenAccount
+        playerTokenAccount
       );
-
-      const authorityNewBalance = (
-        await getAccount(provider.connection, gameAuthorityTokenAccount.address)
-      ).amount;
-      const funds = authorityNewBalance - authorityInitialBalance;
-      expect(funds).to.equal(amount);
-    });
-
-    it("should not allow non-authority to withdraw", async () => {
-      // warp by 3 slots -> increase timestamp by 1.2 seconds
-      await warpToSlot(provider, slot_offset);
-
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
-
-      // end round
-      await endRound(
-        program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddrSol
-      );
-
-      // try to end round
-      try {
-        await withdrawFunds(
-          program,
-          player,
-          gamePDA,
-          gameVaultPDA,
-          tokenAddress,
-          playerTokenAccount
-        );
-        expect.fail("Player should not be able to withdraw");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
-      }
-    });
+      expect.fail("Player should not be able to withdraw");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
+    }
   });
 });

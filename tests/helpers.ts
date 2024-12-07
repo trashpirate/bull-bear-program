@@ -15,6 +15,12 @@ import {
 } from "@solana/spl-token";
 
 import { SOL_feedId } from "./config";
+import { MockPythPull } from "../target/types/mock_pyth_pull";
+import { Wallet } from "@coral-xyz/anchor";
+import { pullOracleClient } from "./mock_oracle";
+import { confirmTransaction } from "@solana-developers/helpers";
+
+const oracle = anchor.workspace.MockPythPull as anchor.Program<MockPythPull>;
 
 /*//////////////////////////////////////////////////////////////
                               INSTRUCTIONS
@@ -44,14 +50,15 @@ export async function initializeGame(
   game_authority: any,
   protocolPDA: any,
   roundInterval: number,
-  tokenAddress: any
+  tokenAddress: any,
+  priceFeed: any
 ) {
   const gamePDA = await getGamePDA(
     program,
     game_authority,
     protocolPDA,
     tokenAddress,
-    roundInterval
+    priceFeed
   );
   const gameVaultPDA = splToken.getAssociatedTokenAddressSync(
     tokenAddress,
@@ -59,16 +66,16 @@ export async function initializeGame(
     true
   );
   await program.methods
-    .initializeNewGame(new anchor.BN(roundInterval), SOL_feedId)
+    .initializeNewGame(new anchor.BN(roundInterval), SOL_feedId, priceFeed)
     .accounts({
       gameAuthority: game_authority.publicKey,
       protocol: protocolPDA,
       game: gamePDA,
       mint: tokenAddress,
       vault: gameVaultPDA,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([game_authority])
     .rpc({ commitment: "confirmed" });
@@ -93,9 +100,9 @@ export async function initializeRound(
       round: pda,
       mint: tokenAddress,
       vault: vault,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([signer])
     .rpc({ commitment: "confirmed" });
@@ -108,7 +115,7 @@ export async function startRound(
   signer: any,
   gamePDA: any,
   roundPDA: any,
-  priceFeedAddrSol: any
+  priceFeed: any
 ) {
   const tx = // start round
     await program.methods
@@ -117,7 +124,7 @@ export async function startRound(
         gameAuthority: signer.publicKey,
         game: gamePDA,
         round: roundPDA,
-        priceUpdate: priceFeedAddrSol,
+        priceUpdate: priceFeed,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .signers([signer])
@@ -149,9 +156,9 @@ export async function placeBet(
       mint: tokenAddress,
       vault: roundVaultPDA,
       signerVault: signerTokenAccount.address,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([signer])
     .rpc({ commitment: "confirmed" });
@@ -186,7 +193,7 @@ export async function endRound(
   gameVaultPDA: any,
   roundVaultPDA: any,
   tokenAddress: any,
-  priceFeedAddr: any
+  priceFeed: any
 ) {
   const tx = await program.methods
     .endCurrentRound()
@@ -194,13 +201,13 @@ export async function endRound(
       gameAuthority: signer.publicKey,
       game: gamePDA,
       round: roundPDA,
-      priceUpdate: priceFeedAddr,
+      priceUpdate: priceFeed,
       mint: tokenAddress,
       round_vault: roundVaultPDA,
       game_vault: gameVaultPDA,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([signer])
     .rpc({ commitment: "confirmed" });
@@ -227,9 +234,9 @@ export async function claimPrize(
       mint: tokenAddress,
       vault: roundVaultPDA,
       signerVault: playerTokenAccount.address,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([signer])
     .rpc({ commitment: "confirmed" });
@@ -252,33 +259,30 @@ export async function withdrawFunds(
       mint: tokenAddress,
       vault: gameVaultPDA,
       signerVault: signerTokenAccount.address,
-      systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
     .signers([signer])
     .rpc({ commitment: "confirmed" });
   return tx;
 }
-
-export async function updateFeed(
+export async function updateInterval(
   program: any,
-  game_authority: any,
-  protocolPDA: any,
+  signer: any,
   gamePDA: any,
-  priceFeedId: any
+  interval: number
 ) {
-  await program.methods
-    .updatePriceFeed(priceFeedId)
+  const tx = await program.methods
+    .updateRoundInterval(new anchor.BN(interval))
     .accounts({
-      gameAuthority: game_authority.publicKey,
-      protocol: protocolPDA,
+      gameAuthority: signer.publicKey,
       game: gamePDA,
+      systemProgram: anchor.web3.SystemProgram.programId,
     })
-    .signers([game_authority])
+    .signers([signer])
     .rpc({ commitment: "confirmed" });
-
-  return gamePDA;
+  return tx;
 }
 
 /*//////////////////////////////////////////////////////////////
@@ -301,17 +305,15 @@ export async function getGamePDA(
   authority: any,
   protocolPDA: any,
   tokenAddress: any,
-  roundInterval: number = 0
+  priceFeed: any
 ) {
-  const buffer64 = Buffer.alloc(8);
-  buffer64.writeBigUint64LE(BigInt(roundInterval), 0);
   const [pda, bump] = await PublicKey.findProgramAddressSync(
     [
       anchor.utils.bytes.utf8.encode("GAME_SEED"),
       authority.publicKey.toBuffer(),
       protocolPDA.toBuffer(),
-      buffer64,
       tokenAddress.toBuffer(),
+      priceFeed.toBuffer(),
     ],
     program.programId
   );
@@ -431,4 +433,40 @@ export async function warpToSlot(provider: any, slot: number) {
     // Send the transaction
     const signature = await provider.sendAndConfirm(tx);
   }
+}
+
+export async function getOracle(provider) {
+  const wallet = provider.wallet as Wallet;
+
+  // program
+  let pullOracle: pullOracleClient = new pullOracleClient({
+    provider: provider,
+    wallet: wallet,
+    program: oracle,
+  });
+
+  const [txId, priceFeed] = await pullOracle.createOracle(
+    SOL_feedId,
+    100,
+    100,
+    -9
+  );
+
+  await confirmTransaction(provider.connection, txId);
+
+  // console.log("priceFeed", priceFeed.toBase58());
+
+  return { pullOracle: pullOracle, feed: priceFeed };
+}
+
+export async function setOraclePrice(
+  provider: any,
+  pullOracle: any,
+  priceFeed: PublicKey,
+  price: number
+) {
+  const tx = await pullOracle.setPrice(priceFeed, price, -9, 1.5);
+  await confirmTransaction(provider.connection, tx);
+  // console.log("set price", tx);
+  return tx;
 }

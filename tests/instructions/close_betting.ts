@@ -5,18 +5,21 @@ import { BullBearProgram } from "../../target/types/bull_bear_program";
 import { expect } from "chai";
 import * as splToken from "@solana/spl-token";
 
-import { priceFeedAddrSol, INTERVAL, SLOT_OFFSET, FEE } from "../config";
+import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
   closeBetting,
+  getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
   initializeRound,
+  setOraclePrice,
   startRound,
   warpToSlot,
 } from "../helpers";
+import { pullOracleClient } from "../mock_oracle";
 
 describe("Close Betting", () => {
   // provider
@@ -40,6 +43,8 @@ describe("Close Betting", () => {
   let gameVaultPDA: PublicKey;
   let roundPDA: PublicKey;
   let roundVaultPDA: PublicKey;
+  let priceFeedAddr: PublicKey;
+  let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
     // Generate keypairs
     authority = anchor.web3.Keypair.generate();
@@ -69,6 +74,11 @@ describe("Close Betting", () => {
       game_authority
     );
 
+    // setup oracle
+    const oracle = await getOracle(provider);
+    priceFeedAddr = oracle.feed;
+    pullOracle = oracle.pullOracle;
+
     // initialize parameters
     game_fee = FEE;
     roundInterval = INTERVAL;
@@ -83,7 +93,8 @@ describe("Close Betting", () => {
       game_authority,
       protocolPDA,
       roundInterval,
-      tokenAddress
+      tokenAddress,
+      priceFeedAddr
     );
 
     // initialize round
@@ -95,54 +106,45 @@ describe("Close Betting", () => {
     );
 
     // start round
-    await startRound(
-      program,
-      game_authority,
-      gamePDA,
-      roundPDA,
-      priceFeedAddrSol
-    );
+    await startRound(program, game_authority, gamePDA, roundPDA, priceFeedAddr);
   });
 
-  describe("Closing Betting", () => {
-    it("should allow authority to close betting for an active round", async () => {
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
+  it("should allow authority to close betting for an active round", async () => {
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // close betting
-      const tx = await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // close betting
+    const tx = await closeBetting(program, game_authority, gamePDA, roundPDA);
 
-      // check betting status
-      const bettingStatus = (await program.account.round.fetch(roundPDA))
-        .betting;
-      expect(Object.keys(bettingStatus)[0].toString()).to.equal("closed");
-    });
+    // check betting status
+    const bettingStatus = (await program.account.round.fetch(roundPDA)).betting;
+    expect(Object.keys(bettingStatus)[0].toString()).to.equal("closed");
+  });
 
-    it("should not allow non-authority to close betting", async () => {
-      try {
-        await closeBetting(program, player, gamePDA, roundPDA);
-        expect.fail("Player should not be able to close betting phase");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
-      }
-    });
+  it("should not allow non-authority to close betting", async () => {
+    try {
+      await closeBetting(program, player, gamePDA, roundPDA);
+      expect.fail("Player should not be able to close betting phase");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
+    }
+  });
 
-    it("should not allow closing when already closed", async () => {
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
+  it("should not allow closing when already closed", async () => {
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // close betting
-      const tx = await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // close betting
+    const tx = await closeBetting(program, game_authority, gamePDA, roundPDA);
 
-      // close betting again
-      try {
-        await closeBetting(program, game_authority, gamePDA, roundPDA);
-        expect.fail("Closed betting should not be closed again");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("BettingIsClosed");
-      }
-    });
+    // close betting again
+    try {
+      await closeBetting(program, game_authority, gamePDA, roundPDA);
+      expect.fail("Closed betting should not be closed again");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("BettingIsClosed");
+    }
   });
 });

@@ -26,6 +26,7 @@ pub struct Game {
     pub counter: u16,
     pub round_interval: u64,
     pub feed_id: [u8; 32],
+    pub feed_account: Pubkey,
     pub vault: Pubkey,
     pub token: Pubkey,
     pub bump: u8,

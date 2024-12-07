@@ -27,8 +27,8 @@ pub mod claim_prize;
 pub use withdraw_funds::*;
 pub mod withdraw_funds;
 
-pub use update_feed::*;
-pub mod update_feed;
-
 pub use test_price_feed::*;
 pub mod test_price_feed;
+
+pub use update_interval::*;
+pub mod update_interval;

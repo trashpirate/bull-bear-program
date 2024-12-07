@@ -1,7 +1,8 @@
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount, Token, Transfer, transfer};
-use anchor_spl::associated_token::AssociatedToken;
+use anchor_lang::solana_program::system_program;
+use anchor_spl::token::{spl_token, transfer, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::associated_token::{spl_associated_token_account, AssociatedToken};
 
 use crate::errors::BullBearProgramError;
 use crate::states::*;
@@ -63,8 +64,8 @@ pub struct ClaimPrizeContext<'info> {
             GAME_SEED.as_bytes(),
             game.game_authority.as_ref(),
             game.protocol.as_ref(),
-            game.round_interval.to_le_bytes().as_ref(),
             game.token.as_ref(),
+            game.feed_account.as_ref()
         ],
         bump = game.bump
     )]
@@ -104,7 +105,13 @@ pub struct ClaimPrizeContext<'info> {
         associated_token::authority = player,
     )]
     pub signer_vault: Account<'info, TokenAccount>,
-    pub system_program: Program<'info, System>,
+    
+    #[account(address = spl_token::ID)]
     pub token_program: Program<'info, Token>,
+
+    #[account(address = spl_associated_token_account::ID)]
     pub associated_token_program: Program<'info, AssociatedToken>,
+
+    #[account(address = system_program::ID)]
+    pub system_program: Program<'info, System>,
 }

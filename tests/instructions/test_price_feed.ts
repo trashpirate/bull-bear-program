@@ -23,24 +23,22 @@ describe("Test Price Feed", () => {
     await airdrop(provider.connection, authority.publicKey);
   });
 
-  describe("Test Price Feed", () => {
-    it("should allow authority to start a round with valid state", async () => {
-      // test price feed
-      const txId = // start round
-        await program.methods
-          .testFeed(SOL_feedId, new anchor.BN(60))
-          .accounts({
-            gameAuthority: authority.publicKey,
-            priceUpdate: priceFeedAddrSol,
-          })
-          .signers([authority])
-          .rpc({ commitment: "confirmed" });
+  it("should allow authority to start a round with valid state", async () => {
+    // test price feed
+    const txId = // start round
+      await program.methods
+        .testFeed(SOL_feedId, new anchor.BN(60))
+        .accounts({
+          gameAuthority: authority.publicKey,
+          priceUpdate: priceFeedAddrSol,
+        })
+        .signers([authority])
+        .rpc({ commitment: "confirmed" });
 
-      let tx = await provider.connection.getTransaction(txId, {
-        maxSupportedTransactionVersion: 0,
-        commitment: "confirmed",
-      });
-      console.log(tx?.meta?.logMessages);
+    let tx = await provider.connection.getTransaction(txId, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
     });
+    console.log(tx?.meta?.logMessages);
   });
 });

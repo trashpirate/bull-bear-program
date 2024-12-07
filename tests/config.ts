@@ -1,4 +1,7 @@
-import { PublicKey } from "@solana/web3.js";
+import { AnchorProvider, Program } from "@coral-xyz/anchor";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { ConfirmOptions, PublicKey } from "@solana/web3.js";
+import { MockPythPull } from "../target/types/mock_pyth_pull";
 
 export const priceFeedAddrSol = new PublicKey(
   "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
@@ -23,3 +26,11 @@ export const ETH_feedId =
 export const SLOT_OFFSET = 3;
 export const INTERVAL = 1;
 export const FEE = 100000000;
+
+export type PullOracleClientConfig = {
+  wallet: NodeWallet;
+  provider: AnchorProvider;
+  program?: Program<MockPythPull>;
+  programId?: PublicKey;
+  opts?: ConfirmOptions;
+};

@@ -1,5 +1,5 @@
 
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::system_program};
 use pyth_solana_receiver_sdk::price_update::{get_feed_id_from_hex, PriceUpdateV2, VerificationLevel};
 
 
@@ -22,6 +22,9 @@ pub fn test_price_feed(ctx: Context<PriceFeedContext>, feed_id: String, maximum_
 pub struct PriceFeedContext<'info> {
     #[account(mut)]
     pub game_authority: Signer<'info>,
+    
     pub price_update: Account<'info, PriceUpdateV2>,
+
+    #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }

@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::system_program};
 
 use crate::states::*;
 
@@ -16,6 +16,7 @@ pub fn initialize_protocol(ctx: Context<InitializeProtocolContext>, game_fee: u6
 pub struct InitializeProtocolContext<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    
     #[account(
         init,
         payer = authority,
@@ -27,5 +28,7 @@ pub struct InitializeProtocolContext<'info> {
         bump,
     )]
     pub protocol: Account<'info, Protocol>,
+
+    #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }

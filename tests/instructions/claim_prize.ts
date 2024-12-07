@@ -5,32 +5,25 @@ import { BullBearProgram } from "../../target/types/bull_bear_program";
 import { expect } from "chai";
 import * as splToken from "@solana/spl-token";
 
-import {
-  priceFeedAddrSol,
-  INTERVAL,
-  SLOT_OFFSET,
-  FEE,
-  WIF_feedId,
-  priceFeedAddrWif,
-  priceFeedAddrEth,
-  ETH_feedId,
-} from "../config";
+import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
   claimPrize,
   closeBetting,
   endRound,
+  getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
   initializeRound,
   placeBet,
+  setOraclePrice,
   startRound,
-  updateFeed,
   warpToSlot,
 } from "../helpers";
 import { approve, getAccount } from "@solana/spl-token";
+import { pullOracleClient } from "../mock_oracle";
 
 describe("Claim Prize", () => {
   // provider
@@ -54,6 +47,8 @@ describe("Claim Prize", () => {
   let gameVaultPDA: PublicKey;
   let roundPDA: PublicKey;
   let roundVaultPDA: PublicKey;
+  let priceFeedAddr: PublicKey;
+  let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
     // Generate keypairs
     authority = anchor.web3.Keypair.generate();
@@ -83,6 +78,12 @@ describe("Claim Prize", () => {
       game_authority
     );
 
+    // setup oracle
+    const oracle = await getOracle(provider);
+    priceFeedAddr = oracle.feed;
+    pullOracle = oracle.pullOracle;
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 60);
+
     // initialize parameters
     game_fee = FEE;
     roundInterval = INTERVAL;
@@ -97,7 +98,8 @@ describe("Claim Prize", () => {
       game_authority,
       protocolPDA,
       roundInterval,
-      tokenAddress
+      tokenAddress,
+      priceFeedAddr
     );
 
     // initialize round
@@ -109,13 +111,7 @@ describe("Claim Prize", () => {
     );
 
     // start round
-    await startRound(
-      program,
-      game_authority,
-      gamePDA,
-      roundPDA,
-      priceFeedAddrSol
-    );
+    await startRound(program, game_authority, gamePDA, roundPDA, priceFeedAddr);
 
     // fund player account
     const playerBalance = (
@@ -133,195 +129,111 @@ describe("Claim Prize", () => {
     );
   });
 
-  describe("Claiming Prizes", () => {
-    it("should allow a winning player to claim their prize", async () => {
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
-        program,
-        gamePDA,
-        roundPDA,
-        roundVaultPDA,
-        tokenAddress,
-        player,
-        playerTokenAccount,
-        prediction,
-        amount
-      );
+  it("should allow a winning player to claim their prize", async () => {
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
 
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
 
-      // updated Feed
-      await updateFeed(
-        program,
-        game_authority,
-        protocolPDA,
-        gamePDA,
-        WIF_feedId
-      );
+    // updated Feed
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 30);
 
-      // end round
-      await endRound(
-        program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddrWif
-      );
+    // end round
+    await endRound(
+      program,
+      game_authority,
+      gamePDA,
+      roundPDA,
+      gameVaultPDA,
+      roundVaultPDA,
+      tokenAddress,
+      priceFeedAddr
+    );
 
-      // get player balance
-      const playerInitialBalance = (
-        await getAccount(provider.connection, playerTokenAccount.address)
-      ).amount;
+    // get player balance
+    const playerInitialBalance = (
+      await getAccount(provider.connection, playerTokenAccount.address)
+    ).amount;
 
-      // claim prize
-      const tx = await claimPrize(
-        program,
-        player,
-        gamePDA,
-        roundPDA,
-        betPDA,
-        tokenAddress,
-        roundVaultPDA,
-        playerTokenAccount
-      );
+    // claim prize
+    const tx = await claimPrize(
+      program,
+      player,
+      gamePDA,
+      roundPDA,
+      betPDA,
+      tokenAddress,
+      roundVaultPDA,
+      playerTokenAccount
+    );
 
-      // check claimed status
-      const betClaimed = (await program.account.bet.fetch(betPDA)).claimed;
-      expect(betClaimed).to.equal(true);
+    // check claimed status
+    const betClaimed = (await program.account.bet.fetch(betPDA)).claimed;
+    expect(betClaimed).to.equal(true);
 
-      const playerNewBalance = (
-        await getAccount(provider.connection, playerTokenAccount.address)
-      ).amount;
+    const playerNewBalance = (
+      await getAccount(provider.connection, playerTokenAccount.address)
+    ).amount;
 
-      const prizeMoney = playerNewBalance - playerInitialBalance;
-      expect(Number(prizeMoney)).to.equal(amount);
-    });
+    const prizeMoney = playerNewBalance - playerInitialBalance;
+    expect(Number(prizeMoney)).to.equal(amount);
+  });
 
-    it("should not allow losers to claim a prize", async () => {
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
-        program,
-        gamePDA,
-        roundPDA,
-        roundVaultPDA,
-        tokenAddress,
-        player,
-        playerTokenAccount,
-        prediction,
-        amount
-      );
+  it("should not allow losers to claim a prize", async () => {
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
 
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
 
-      // updated Feed
-      await updateFeed(
-        program,
-        game_authority,
-        protocolPDA,
-        gamePDA,
-        ETH_feedId
-      );
+    // updated Feed
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 100);
 
-      // end round
-      await endRound(
-        program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddrEth
-      );
+    // end round
+    await endRound(
+      program,
+      game_authority,
+      gamePDA,
+      roundPDA,
+      gameVaultPDA,
+      roundVaultPDA,
+      tokenAddress,
+      priceFeedAddr
+    );
 
-      // claim prize
-      try {
-        await claimPrize(
-          program,
-          player,
-          gamePDA,
-          roundPDA,
-          betPDA,
-          tokenAddress,
-          roundVaultPDA,
-          playerTokenAccount
-        );
-        expect.fail("Loser should not be able to claim prize.");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("NoPrizeClaimable");
-      }
-    });
-
-    it("should not allow a player to claim their prize more than once", async () => {
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
-        program,
-        gamePDA,
-        roundPDA,
-        roundVaultPDA,
-        tokenAddress,
-        player,
-        playerTokenAccount,
-        prediction,
-        amount
-      );
-
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
-
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
-
-      // updated Feed
-      await updateFeed(
-        program,
-        game_authority,
-        protocolPDA,
-        gamePDA,
-        WIF_feedId
-      );
-
-      // end round
-      await endRound(
-        program,
-        game_authority,
-        gamePDA,
-        roundPDA,
-        gameVaultPDA,
-        roundVaultPDA,
-        tokenAddress,
-        priceFeedAddrWif
-      );
-
-      // get player balance
-      const playerInitialBalance = (
-        await getAccount(provider.connection, playerTokenAccount.address)
-      ).amount;
-
-      // get vault balance
-      const vaultBalance = (
-        await getAccount(provider.connection, roundVaultPDA)
-      ).amount;
-
-      // claim prize
+    // claim prize
+    try {
       await claimPrize(
         program,
         player,
@@ -332,67 +244,119 @@ describe("Claim Prize", () => {
         roundVaultPDA,
         playerTokenAccount
       );
+      expect.fail("Loser should not be able to claim prize.");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("NoPrizeClaimable");
+    }
+  });
 
-      // claim prize
-      try {
-        await claimPrize(
-          program,
-          player,
-          gamePDA,
-          roundPDA,
-          betPDA,
-          tokenAddress,
-          roundVaultPDA,
-          playerTokenAccount
-        );
-        expect.fail("Winner should not be able to claim twice");
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("PrizeAlreadyClaimed");
-      }
-    });
+  it("should not allow a player to claim their prize more than once", async () => {
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
 
-    it("should not allow prize claims for unfinished rounds", async () => {
-      // place bet
-      const prediction = { down: {} };
-      const amount = 100 * 10 ** 9;
-      const betPDA = await placeBet(
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
+
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
+
+    // updated Feed
+    await setOraclePrice(provider, pullOracle, priceFeedAddr, 30);
+
+    // end round
+    await endRound(
+      program,
+      game_authority,
+      gamePDA,
+      roundPDA,
+      gameVaultPDA,
+      roundVaultPDA,
+      tokenAddress,
+      priceFeedAddr
+    );
+
+    // claim prize
+    await claimPrize(
+      program,
+      player,
+      gamePDA,
+      roundPDA,
+      betPDA,
+      tokenAddress,
+      roundVaultPDA,
+      playerTokenAccount
+    );
+
+    // claim prize
+    try {
+      await claimPrize(
         program,
+        player,
         gamePDA,
         roundPDA,
-        roundVaultPDA,
+        betPDA,
         tokenAddress,
-        player,
-        playerTokenAccount,
-        prediction,
-        amount
+        roundVaultPDA,
+        playerTokenAccount
       );
+      expect.fail("Winner should not be able to claim twice");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("PrizeAlreadyClaimed");
+    }
+  });
 
-      // warp by 10 slots -> increase timestamp by 4 seconds
-      await warpToSlot(provider, slot_offset);
+  it("should not allow prize claims for unfinished rounds", async () => {
+    // place bet
+    const prediction = { down: {} };
+    const amount = 100 * 10 ** 9;
+    const betPDA = await placeBet(
+      program,
+      gamePDA,
+      roundPDA,
+      roundVaultPDA,
+      tokenAddress,
+      player,
+      playerTokenAccount,
+      prediction,
+      amount
+    );
 
-      // close betting
-      await closeBetting(program, game_authority, gamePDA, roundPDA);
+    // warp by 10 slots -> increase timestamp by 4 seconds
+    await warpToSlot(provider, slot_offset);
 
-      // claim prize
-      try {
-        await claimPrize(
-          program,
-          player,
-          gamePDA,
-          roundPDA,
-          betPDA,
-          tokenAddress,
-          roundVaultPDA,
-          playerTokenAccount
-        );
-        expect.fail(
-          "Winner should not be able to claim prize when round active"
-        );
-      } catch (_err) {
-        const err = anchor.AnchorError.parse(_err.logs);
-        expect(err.error.errorCode.code).to.equal("CurrentRoundNotEnded");
-      }
-    });
+    // close betting
+    await closeBetting(program, game_authority, gamePDA, roundPDA);
+
+    // claim prize
+    try {
+      await claimPrize(
+        program,
+        player,
+        gamePDA,
+        roundPDA,
+        betPDA,
+        tokenAddress,
+        roundVaultPDA,
+        playerTokenAccount
+      );
+      expect.fail("Winner should not be able to claim prize when round active");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("CurrentRoundNotEnded");
+    }
   });
 });

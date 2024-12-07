@@ -2,23 +2,21 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { BullBearProgram } from "../../target/types/bull_bear_program";
-import { assert, expect } from "chai";
+import { expect } from "chai";
 import * as splToken from "@solana/spl-token";
-
-import { SOL_feedId, WIF_feedId, INTERVAL, SLOT_OFFSET, FEE } from "../config";
+import { INTERVAL, SLOT_OFFSET, FEE } from "../config";
 import {
   airdrop,
-  getFeedIdFromHex,
   getOracle,
   getToken,
   getTokenAccount,
   initializeGame,
   initializeProtocol,
-  setOraclePrice,
+  updateInterval,
 } from "../helpers";
 import { pullOracleClient } from "../mock_oracle";
 
-describe("Intialize Game", () => {
+describe("Update Interval", () => {
   // provider
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -36,6 +34,8 @@ describe("Intialize Game", () => {
   let tokenAddress: PublicKey;
   let playerTokenAccount: splToken.Account;
   let gameAuthorityTokenAccount: splToken.Account;
+  let gamePDA: PublicKey;
+  let gameVaultPDA: PublicKey;
   let priceFeedAddr: PublicKey;
   let pullOracle: pullOracleClient;
   beforeEach("Setup", async () => {
@@ -79,18 +79,6 @@ describe("Intialize Game", () => {
 
     // Initialize Protocol
     protocolPDA = await initializeProtocol(program, authority, game_fee);
-  });
-
-  let gamePDA: PublicKey;
-  let gameVaultPDA: PublicKey;
-  it("should initialize the game with correct authority and initial state", async () => {
-    // Check initial balances
-    const initialGameAuthorityBalance = await provider.connection.getBalance(
-      game_authority.publicKey
-    );
-    const initialProtocolBalance = await provider.connection.getBalance(
-      protocolPDA
-    );
 
     // Initialize Game
     [gamePDA, gameVaultPDA] = await initializeGame(
@@ -101,49 +89,32 @@ describe("Intialize Game", () => {
       tokenAddress,
       priceFeedAddr
     );
+  });
 
-    // check protocol
-    const protocolAddr = (await program.account.game.fetch(gamePDA)).protocol;
-    expect(protocolAddr.toString()).to.equal(protocolPDA.toString());
+  it("should be able to update round interval", async () => {
+    const newInterval = 3600;
+    const tx = await updateInterval(
+      program,
+      game_authority,
+      gamePDA,
+      newInterval
+    );
 
     // check program counter
-    const programCounter = (await program.account.game.fetch(gamePDA)).counter;
-    expect(programCounter).to.equal(0);
-
-    // check game authority
-    const gameAuthority = (await program.account.game.fetch(gamePDA))
-      .gameAuthority;
-    expect(gameAuthority.toString()).to.equal(
-      game_authority.publicKey.toString()
-    );
-
-    // check round interval
-    const gameRoundInterval = (await program.account.game.fetch(gamePDA))
+    const gameInterval = (await program.account.game.fetch(gamePDA))
       .roundInterval;
-    expect(gameRoundInterval.toNumber()).to.equal(roundInterval);
+    expect(gameInterval.toNumber()).to.equal(newInterval);
+  });
 
-    // check price feed
-    const priceFeed = (await program.account.game.fetch(gamePDA)).feedId;
-    const expectedPriceFeed = getFeedIdFromHex(SOL_feedId);
-    expect(priceFeed.toString()).to.equal(expectedPriceFeed.toString());
+  it("should not allow non-authority to update interval", async () => {
+    try {
+      const newInterval = 3600;
+      await updateInterval(program, player, gamePDA, newInterval);
 
-    // Check final balances
-    const finalGameAuthorityBalance = await provider.connection.getBalance(
-      game_authority.publicKey
-    );
-    const finalProtocolBalance = await provider.connection.getBalance(
-      protocolPDA
-    );
-
-    // Assert the fee transfer
-    assert.isAtMost(
-      finalGameAuthorityBalance,
-      initialGameAuthorityBalance - game_fee
-    );
-    assert.equal(
-      finalProtocolBalance,
-      initialProtocolBalance + game_fee,
-      "Protocol balance mismatch"
-    );
+      expect.fail("Player should not be able to update interval.");
+    } catch (_err) {
+      const err = anchor.AnchorError.parse(_err.logs);
+      expect(err.error.errorCode.code).to.equal("ConstraintSeeds");
+    }
   });
 });
