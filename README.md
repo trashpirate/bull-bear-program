@@ -202,7 +202,7 @@ anchor deploy --program-name bull_bear_program --provider.cluster Devnet
 
 #### Deployment on Devnet
 
-https://explorer.solana.com/address/9uXBFpbqUohLxpQecPKtiDA8s8cLRU5HucTnDT9jaFJW?cluster=devnet
+https://explorer.solana.com/address/FKkP7JrUxzVYgZfgvb1J86SNuFmPAEtCURD6snMtcjPu?cluster=devnet
 
 ### Instructions
 
@@ -211,7 +211,7 @@ To initialize the protocol, run:
 anchor run init --provider.cluster Devnet 
 ```
 
-Transaction: https://explorer.solana.com/tx/HZkeNc8mfKak7G7BETEB6S2yompMWiF9YQrXdjmu6PNbEzFA1WQCPbQnmfGAT8tz3GK4TQ6U5CAhy4wwGdRU81L?cluster=devnet
+Transaction: https://explorer.solana.com/tx/445wEs3q3qKxTbFKvHbgiznemyqmqukoLK27wGuFEmLYu26F7mGPYBPcefVFye7jRezJNGnsqCst54Bu1tQKJuSf?cluster=devnet
 
 
 To test the price feed from the Pyth Oracle, run:
