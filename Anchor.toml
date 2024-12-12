@@ -22,8 +22,10 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/place_bet.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/start_round.ts"
 init = "yarn ts-node scripts/initializeProtocol.ts"
+create = "yarn ts-node scripts/initializeGame.ts"
+start = "yarn ts-node scripts/startGame.ts"
 start_round = "yarn ts-node scripts/startRound.ts"
 test_price_feed = "yarn ts-node scripts/testPriceFeed.ts"
 
@@ -31,4 +33,13 @@ test_price_feed = "yarn ts-node scripts/testPriceFeed.ts"
 startup_wait = 10000
 shutdown_wait = 2000
 upgradeable = false
+
+# this should be uncommented if tested with solana test validator validator run with `./setup_validator.sh`
+# [workspace]
+# exclude = [
+#     "programs/mock_pyth_push",
+#     "programs/mock_pyth_pull"
+# ]
+
+
 

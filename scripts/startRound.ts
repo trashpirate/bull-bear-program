@@ -39,7 +39,7 @@ async function startRound(
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .signers([authority])
-      .rpc({ commitment: "confirmed" });
+      .simulate({ commitment: "confirmed" });
   return tx;
 }
 

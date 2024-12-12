@@ -17,6 +17,12 @@
 ### Overview
 BullBear Game is an exciting and strategic price prediction game built on the Solana blockchain. It allows players to predict the price movement of their favorite cryptocurrencies over a set period and win rewards. The game leverages the Pyth Oracle network for real-time price feeds and supports SPL tokens for betting and rewards.
 
+TODO:
+
+- remove game authority check for round handling but add constraints to ensure smooth game operation (anyone should be able to start a round, close betting, and end a round)
+- do we need the option to delete a game?
+- add an ID (counter) to the game
+
 ---
 
 ### How to Play the BullBear Game
@@ -57,8 +63,6 @@ BullBear Game is an exciting and strategic price prediction game built on the So
 - **Custom Cryptocurrencies**: Choose any token with a price feed on the Pyth Oracle network.
 - **Flexible Betting Tokens**: Use any SPL token for betting and rewards.
 - **Dynamic Intervals**: Define custom time intervals for each game round.
-
-
 
 The BullBear Game combines blockchain transparency with the thrill of market prediction, creating a fair and engaging experience for all players. Predict, bet, and claim your winnings—are you ready to take on the market?
 
